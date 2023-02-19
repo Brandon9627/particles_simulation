@@ -14,16 +14,19 @@ SCREEN_WIDTH = 700
 SCREEN_HEIGHT = 500
 
 # Set the number of circles to simulate
-NUM_CIRCLES = 45
+NUM_CIRCLES = 10
 RADIUS = 5
 # Set the gravitational constant
 G = 1
 
 
 class Circle:
+
     def __init__(self, x, y, radius, color, mass):
         self.x = x
         self.y = y
+        self.i = int(self.x / (SCREEN_WIDTH / 70))
+        self.j = int(self.y / (SCREEN_WIDTH / 50))
         self.RADIUS = radius
         self.color = color
         self.mass = mass
@@ -37,7 +40,6 @@ class Circle:
         self.x += self.vx * dt
         self.y += self.vy * dt
 
-        # # Bounce off edges
         # Bounce off edges
         if self.x < self.RADIUS:
             self.x = self.RADIUS
@@ -51,6 +53,14 @@ class Circle:
         elif self.y > SCREEN_HEIGHT - self.RADIUS:
             self.y = SCREEN_HEIGHT - self.RADIUS
             self.vy *= -1
+
+        self.i = int(self.x / (SCREEN_WIDTH / 70))
+        self.j = int(self.y / (SCREEN_HEIGHT / 50))
+
+        return self.get_grid_location()
+
+    def get_grid_location(self):
+        return self.i, self.j
 
     def apply_gravity(self, other_circles, dt):
         for other in other_circles:
@@ -67,8 +77,8 @@ class Circle:
         dx = other.x - self.x
         dy = other.y - self.y
         dist = math.sqrt(dx ** 2 + dy ** 2)
-        if dist <= self.RADIUS + other.RADIUS:
-            overlap = 0.2 * (dist - self.RADIUS - other.RADIUS + 1)
+        if self.RADIUS + other.RADIUS >= dist:
+            overlap = 0.1 * (dist - self.RADIUS - other.RADIUS + 1)
             self.x -= overlap * (self.x - other.x) / dist
             self.y -= overlap * (self.y - other.y) / dist
             other.x += overlap * (self.x - other.x) / dist
@@ -88,7 +98,6 @@ class Circle:
             other.vy = new_other_yspeed
 
 
-
 # Initialize pygame
 pygame.init()
 
@@ -98,13 +107,14 @@ screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])
 # Set the title of the window
 pygame.display.set_caption("Circle Simulation")
 
+
 # Create a list of circles
 circles = []
 for i in range(NUM_CIRCLES):
     x = random.randint(RADIUS, SCREEN_WIDTH - RADIUS)
     y = random.randint(RADIUS, SCREEN_HEIGHT - RADIUS)
 
-    color = (0, random.randint(0, 10)*25, 255)
+    color = (0, random.randint(0, 10) * 25, 255)
     mass = RADIUS ** 2
     circle = Circle(x, y, RADIUS, color, mass)
     circles.append(circle)
@@ -131,13 +141,20 @@ while running:
         circle.apply_gravity(circles, 0.1)
 
     # Update the position of all circles
+    grid = [[[] for j in range(52)] for i in range(72)]
     for circle in circles:
-        circle.update(0.8)
+        i, j = circle.update(0.2)
+        grid[i+1][j+1].append(circle)
 
     # Handle collisions between circles
-    for i in range(len(circles)):
-        for j in range(i+1, len(circles)):
-            circles[i].handle_collision(circles[j])
+    for h in range(len(circles)):
+        i, j = circles[h].get_grid_location()
+        for gi in range(i, i+3):
+            for gj in range(j, j+3):
+                if not gj or (gi == i+1 and gj == j+1):
+                    continue
+                for circle in grid[gi][gj]:
+                    circles[h].handle_collision(circle)
 
     # Draw all circles to the screen
     for circle in circles:
